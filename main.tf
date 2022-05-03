@@ -24,9 +24,9 @@ resource "aws_sfn_state_machine" "this" {
     for_each = local.enable_logging ? [true] : []
 
     content {
-      log_destination        = lookup(var.logging_configuration, "log_destination", "${local.log_group_arn}:*")
-      include_execution_data = lookup(var.logging_configuration, "include_execution_data", null)
-      level                  = lookup(var.logging_configuration, "level", null)
+      log_destination        = try(var.logging_configuration.log_destination, "${local.log_group_arn}:*")
+      include_execution_data = try(var.logging_configuration.include_execution_data, null)
+      level                  = try(var.logging_configuration.level, null)
     }
   }
 
@@ -88,13 +88,13 @@ data "aws_iam_policy_document" "service" {
     for_each = each.value
 
     content {
-      effect    = lookup(local.aws_service_policies[each.key][statement.key], "effect", "Allow")
+      effect    = try(local.aws_service_policies[each.key][statement.key].effect, "Allow")
       sid       = replace("${each.key}${title(statement.key)}", "/[^0-9A-Za-z]*/", "")
       actions   = local.aws_service_policies[each.key][statement.key]["actions"]
       resources = statement.value == true ? local.aws_service_policies[each.key][statement.key]["default_resources"] : tolist(statement.value)
 
       dynamic "condition" {
-        for_each = lookup(local.aws_service_policies[each.key][statement.key], "condition", [])
+        for_each = try(local.aws_service_policies[each.key][statement.key].condition, [])
         content {
           test     = condition.value.test
           variable = condition.value.variable
@@ -195,15 +195,15 @@ data "aws_iam_policy_document" "additional_inline" {
     for_each = var.policy_statements
 
     content {
-      sid           = lookup(statement.value, "sid", replace(statement.key, "/[^0-9A-Za-z]*/", ""))
-      effect        = lookup(statement.value, "effect", null)
-      actions       = lookup(statement.value, "actions", null)
-      not_actions   = lookup(statement.value, "not_actions", null)
-      resources     = lookup(statement.value, "resources", null)
-      not_resources = lookup(statement.value, "not_resources", null)
+      sid           = try(statement.value.sid, replace(statement.key, "/[^0-9A-Za-z]*/", ""))
+      effect        = try(statement.value.effect, null)
+      actions       = try(statement.value.actions, null)
+      not_actions   = try(statement.value.not_actions, null)
+      resources     = try(statement.value.resources, null)
+      not_resources = try(statement.value.not_resources, null)
 
       dynamic "principals" {
-        for_each = lookup(statement.value, "principals", [])
+        for_each = try(statement.value.principals, [])
         content {
           type        = principals.value.type
           identifiers = principals.value.identifiers
@@ -211,7 +211,7 @@ data "aws_iam_policy_document" "additional_inline" {
       }
 
       dynamic "not_principals" {
-        for_each = lookup(statement.value, "not_principals", [])
+        for_each = try(statement.value.not_principals, [])
         content {
           type        = not_principals.value.type
           identifiers = not_principals.value.identifiers
@@ -219,7 +219,7 @@ data "aws_iam_policy_document" "additional_inline" {
       }
 
       dynamic "condition" {
-        for_each = lookup(statement.value, "condition", [])
+        for_each = try(statement.value.condition, [])
         content {
           test     = condition.value.test
           variable = condition.value.variable
